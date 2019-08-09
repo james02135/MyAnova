@@ -1,0 +1,83 @@
+myANOVA <- function(scale, nominal) { #calling the function
+  
+  nominal = as.factor(nominal)
+  levels = length(table(nominal))
+  
+  if (levels == 1) {# only one level
+    return("there is only one level for the nominal variable, an Anova test is not possible \n\n")
+  }
+  
+  else if(levels == 2) {# only two levels
+    return("There are only two levels in the nominal variable, perhaps a t.test would be better \n\n")
+  }
+  
+  else {# there are at least 3 levels
+    outliers = c()# check for any outliers
+    for (level in 1:length(table(nominal))) {# for each level
+      lower = quantile(scale[nominal == level], na.rm = TRUE)[2]
+      upper = quantile(scale[nominal == level], na.rm = TRUE)[4]
+      difference = upper-lower
+      outliers = c(outliers, scale[nominal == level & (scale < (lower - (1.5 * difference)) | scale > (upper + (1.5 * difference)))])
+    }
+    if (length(na.omit(outliers)) > 0){# then there are outliers
+      cat("There are", paste(length(na.omit(outliers)), "outliers from a total sample size of" , length(na.omit(scale)),
+                             ". They might affect the results of the test. \n\n"))# 
+      deleteOutliers = readline("Delete the outliers?")
+      if (toupper(deleteOutliers) == "Y" || toupper(deleteOutliers) == "YES") {
+        for (level in 1:length(table(nominal))) {
+          lower = quantile(scale[nominal == level], na.rm = TRUE)[2]
+          upper = quantile(scale[nominal == level], na.rm = TRUE)[4]
+          difference = upper-lower
+          scale[nominal == level & (scale < (lower - (1.5 * difference)) | scale > (upper + (1.5 * difference)))] = NA
+        }
+        cat("Outliers deleted \n\n")
+      }
+      else if (toupper(deleteOutliers) == "N" || toupper(deleteOutliers) == "NO") {
+        cat("The outliers have been kept \n\n")
+      }
+      else {
+        return("Invalid Input \n\n")
+      }
+    }
+    
+    myAnova = aov(scale ~ as.factor(nominal)) #Declaring the function myAnova with a scale variable and a nominal variable
+    isNormal = T
+    isSignificant = T
+    result = summary(myAnova)[[1]][[5]][[1]] # just the P value
+    kruskal = kruskal.test(scale ~ nominal)
+    Kresult = (kruskal)[[3]][[1]]
+    boxplot(scale ~ nominal, horizontal = TRUE) #printing out a box plot of the findings
+    if ((result < 0.05) && (Kresult < 0.05)) {
+      levels = levels(nominal)
+      for (level in 1:length(table(nominal))) { # for each level 
+        if (length(table(scale[nominal]==level)) > 50) {# too many levels for Shapiro Test
+          return("There are more than 50 levels to test, perhaps a Kolmogorov-Smirnov test will be more suitable \n\n")
+          if (shapiro.test(scale[nominal==level])[2] < 0.05) {# if the p value is less than 0.05
+            isNormal = F
+          }
+        }
+      }
+    }
+    
+    aov <- aov(scale ~ nominal)
+    postHoc <- TukeyHSD(aov)# running TukeyHSD test as a post hoc
+    pairs = postHoc$nominal[, 'p adj'] < 0.05
+    for (pair in pairs) {# for each p-value collected
+      string = print(pairs)
+          }
+ 
+    
+    levene = levene.test(scale, nominal)
+    isHomogeneous = levene[2] < 0.05
+      if (isHomogeneous & isNormal) {
+        return("A statistically significant finding has been made. \n\n" )
+      }
+      else {
+        return("Not statistically significant finding. \n\n" )
+      }
+    
+    
+  }
+  
+}
+
